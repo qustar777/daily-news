@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>每日新闻简报</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0a0a0a;
+    --card: #141414;
+    --card-hover: #1a1a1a;
+    --text: #f0f0f0;
+    --text-secondary: #999;
+    --primary: #1a1a1a;
+    --accent: #e74c3c;
+    --border: #2a2a2a;
+    --shadow: 0 2px 8px rgba(0,0,0,0.5);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* 开场动画遮罩（纯黑背景，淡出） */
+  .intro {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 9998;
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.5s ease 0.9s;
+  }
+  .intro.done { opacity: 0; }
+
+  /* 标题飞行动画：从屏幕中央飞到左上角固定位置 */
+  .header h1 {
+    will-change: transform, opacity;
+    transform-origin: left center;
+  }
+  .header h1.flying {
+    opacity: 0;
+  }
+
+  /* 新闻卡片依次淡入（由 JS 添加 pop 类触发，错开延迟） */
+  .news-card {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  .news-card.pop {
+    animation: cardFadeIn 0.5s ease forwards;
+  }
+  @keyframes cardFadeIn {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* 顶部栏 */
+  .header {
+    background: #000;
+    color: #fff;
+    padding: 28px 0;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.8);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 1px solid var(--border);
+  }
+  .header-inner {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .header h1 {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: 4px;
+  }
+  .date-picker {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+  }
+  .date-picker select {
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 15px;
+    cursor: pointer;
+    outline: none;
+  }
+  .date-picker select:hover { border-color: var(--accent); }
+
+  /* 主体 */
+  .container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+
+  /* 板块导航 */
+  .nav {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 16px;
+    margin-bottom: 28px;
+    scrollbar-width: none;
+  }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav-item {
+    padding: 10px 22px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 20px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.25s ease;
+    box-shadow: var(--shadow);
+    color: var(--text);
+  }
+  .nav-item:hover {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    transform: translateY(-1px);
+  }
+  .nav-item.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .nav-item .count {
+    display: inline-block;
+    margin-left: 8px;
+    font-size: 14px;
+    opacity: 0.7;
+    font-weight: 400;
+  }
+
+  /* 板块区域 */
+  .section {
+    margin-bottom: 40px;
+    animation: fadeInUp 0.4s ease;
+  }
+  .section-title {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 18px;
+    padding-left: 14px;
+    border-left: 5px solid var(--accent);
+  }
+
+  /* 新闻卡片 */
+  .news-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px 26px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow);
+    transition: all 0.25s ease;
+    animation: fadeInUp 0.4s ease backwards;
+  }
+  .news-card:hover {
+    border-color: var(--accent);
+    background: var(--card-hover);
+  }
+  .news-card:nth-child(1) { animation-delay: 0.05s; }
+  .news-card:nth-child(2) { animation-delay: 0.1s; }
+  .news-card:nth-child(3) { animation-delay: 0.15s; }
+  .news-card:nth-child(4) { animation-delay: 0.2s; }
+  .news-card:nth-child(5) { animation-delay: 0.25s; }
+  .news-card:nth-child(6) { animation-delay: 0.3s; }
+  .news-card:nth-child(7) { animation-delay: 0.35s; }
+  .news-card:nth-child(8) { animation-delay: 0.4s; }
+  .news-card:nth-child(9) { animation-delay: 0.45s; }
+  .news-card:nth-child(10) { animation-delay: 0.5s; }
+
+  .news-title {
+    font-size: 19px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .news-title a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .news-title a:hover { color: var(--accent); }
+
+  .news-summary {
+    font-size: 15px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+  }
+
+  .news-content {
+    font-size: 15px;
+    color: #ccc;
+    line-height: 1.8;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease, margin 0.4s ease;
+  }
+  .news-content.show {
+    max-height: 6000px;
+    margin-top: 14px;
+    margin-bottom: 8px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+
+  .toggle-btn {
+    display: inline-block;
+    padding: 5px 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    border-radius: 5px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 6px;
+  }
+  .toggle-btn:hover {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+
+  .news-meta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .news-source {
+    background: #222;
+    padding: 3px 10px;
+    border-radius: 4px;
+    color: #ddd;
+  }
+  .news-source.multi { background: #3a2410; color: #f5b942; }
+
+  /* 空状态 */
+  .empty {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--text-secondary);
+    animation: fadeIn 0.4s ease;
+  }
+
+  /* 加载状态 */
+  .loading {
+    text-align: center;
+    padding: 100px 20px;
+    color: var(--text-secondary);
+  }
+  .spinner {
+    display: inline-block;
+    width: 36px;
+    height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 16px;
+  }
+
+  /* 页脚 */
+  .footer {
+    text-align: center;
+    padding: 32px;
+    font-size: 12px;
+    color: #555;
+    border-top: 1px solid var(--border);
+  }
+
+  /* 动画 */
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* 响应式 */
+  @media (max-width: 600px) {
+    .header h1 { font-size: 24px; letter-spacing: 2px; }
+    .container { padding: 20px 14px 60px; }
+    .news-card { padding: 16px 18px; }
+    .news-title { font-size: 17px; }
+    .nav-item { font-size: 16px; padding: 8px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="intro"></div>
+
+<header class="header">
+  <div class="header-inner">
+    <h1>每日新闻简报</h1>
+    <div class="date-picker">
+      <label for="dateSelect">日期</label>
+      <select id="dateSelect"></select>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+  <div id="content">
+    <div class="loading">
+      <div class="spinner"></div>
+      <div>加载中...</div>
+    </div>
+  </div>
+</main>
+
+<footer class="footer">
+  数据来源：新华社、央视新闻、人民日报、中国人民银行、国家统计局、中国新闻网<br>
+  仅供个人参考，点击标题可跳转原文
+</footer>
+
+<script>
+const DATA_BASE = './data/';
+let currentDate = null;
+let allDates = [];
+let currentData = null;
+
+// 板块顺序
+const CATEGORY_ORDER = ['政治', '经济', '国际', '科技', '军事', '社会', '其他'];
+let firstLoad = true;
+
+async function init() {
+  await loadIndex();
+  if (allDates.length === 0) {
+    showEmpty('暂无数据，请等待首次采集完成');
+    return;
+  }
+  currentDate = allDates[0];
+  populateDateSelect();
+  await loadDay(currentDate);
+  // 首次加载：标题从屏幕中央飞到左上角，之后卡片依次淡入
+  titleFlight();
+}
+
+function titleFlight() {
+  const h1 = document.querySelector('.header h1');
+  const intro = document.querySelector('.intro');
+  const rect = h1.getBoundingClientRect();
+  const cx = window.innerWidth / 2;
+  const cy = window.innerHeight / 2;
+  const tx = cx - (rect.left + rect.width / 2);
+  const ty = cy - (rect.top + rect.height / 2);
+
+  // 起始：屏幕中央，放大
+  h1.style.transition = 'none';
+  h1.style.transform = `translate(${tx}px, ${ty}px) scale(1.6)`;
+  h1.style.opacity = '1';
+
+  // 强制重排后过渡到自然位置
+  void h1.offsetWidth;
+  h1.style.transition = 'transform 0.9s cubic-bezier(0.2,0.8,0.2,1), opacity 0.9s ease';
+  h1.style.transform = 'translate(0,0) scale(1)';
+
+  // 遮罩淡出
+  setTimeout(() => intro && intro.classList.add('done'), 60);
+
+  // 标题就位后，卡片依次淡入
+  setTimeout(() => animateCards(0), 700);
+  firstLoad = false;
+}
+
+async function loadIndex() {
+  try {
+    const resp = await fetch(DATA_BASE + 'index.json');
+    if (resp.ok) allDates = await resp.json();
+  } catch (e) { console.error('加载索引失败', e); }
+}
+
+function populateDateSelect() {
+  const sel = document.getElementById('dateSelect');
+  sel.innerHTML = allDates.map(d => {
+    const label = d === allDates[0] ? `${d} 今日` : d;
+    return `<option value="${d}">${label}</option>`;
+  }).join('');
+  sel.value = currentDate;
+  sel.addEventListener('change', (e) => {
+    currentDate = e.target.value;
+    loadDay(currentDate);
+  });
+}
+
+async function loadDay(date) {
+  const content = document.getElementById('content');
+  content.innerHTML = '<div class="loading"><div class="spinner"></div><div>加载中...</div></div>';
+  try {
+    const resp = await fetch(DATA_BASE + date + '.json');
+    if (!resp.ok) { showEmpty('该日期数据不存在'); return; }
+    currentData = await resp.json();
+    render(currentData);
+  } catch (e) {
+    showEmpty('加载失败：' + e.message);
+  }
+}
+
+function render(data) {
+  const content = document.getElementById('content');
+  const cats = data.categories || {};
+  const hasNews = Object.values(cats).some(arr => arr.length > 0);
+
+  if (!hasNews) {
+    showEmpty(`${data.date} 暂无可核实新闻`);
+    return;
+  }
+
+  let navHtml = '<nav class="nav">';
+  navHtml += `<div class="nav-item active" data-cat="__all__">全部 <span class="count">${data.total_news || 0}</span></div>`;
+  for (const cat of CATEGORY_ORDER) {
+    if (cats[cat] && cats[cat].length > 0) {
+      navHtml += `<div class="nav-item" data-cat="${cat}">${cat} <span class="count">${cats[cat].length}</span></div>`;
+    }
+  }
+  navHtml += '</nav>';
+
+  let sectionsHtml = '';
+  for (const cat of CATEGORY_ORDER) {
+    if (cats[cat] && cats[cat].length > 0) {
+      sectionsHtml += renderSection(cat, cats[cat]);
+    }
+  }
+  for (const cat of Object.keys(cats)) {
+    if (!CATEGORY_ORDER.includes(cat) && cats[cat].length > 0) {
+      sectionsHtml += renderSection(cat, cats[cat]);
+    }
+  }
+
+  content.innerHTML = navHtml + sectionsHtml;
+
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+      filterByCategory(item.dataset.cat);
+    });
+  });
+
+  // 非首次加载（切换日期）：卡片直接依次淡入
+  if (!firstLoad) {
+    animateCards(0);
+  }
+}
+
+function animateCards(startDelay) {
+  const cards = document.querySelectorAll('.news-card');
+  cards.forEach((card, i) => {
+    card.style.animationDelay = `${startDelay + i * 0.06}s`;
+    card.classList.add('pop');
+  });
+}
+
+function renderSection(cat, items) {
+  let html = `<section class="section" data-cat="${cat}">`;
+  html += `<h2 class="section-title">${cat}</h2>`;
+  for (const item of items) {
+    const sources = item.sources || [item.source];
+    const sourceHtml = sources.map(s => `<span class="news-source ${sources.length>1?'multi':''}">${s}</span>`).join('');
+    const timeText = item.pub_time ? formatTime(item.pub_time) : '';
+    const contentHtml = item.content ? `<div class="news-content">${escapeHtml(item.content)}</div>` : '';
+    const toggleBtn = item.content ? `<button class="toggle-btn" onclick="toggleContent(this)">展开全文</button>` : '';
+    html += `
+      <article class="news-card">
+        <h3 class="news-title">
+          <a href="${item.link}" target="_blank" rel="noopener">${escapeHtml(item.title)}</a>
+        </h3>
+        ${item.summary ? `<p class="news-summary">${escapeHtml(item.summary)}</p>` : ''}
+        ${contentHtml}
+        ${toggleBtn}
+        <div class="news-meta">
+          ${sourceHtml}
+          ${timeText ? `<span>${timeText}</span>` : ''}
+          ${sources.length > 1 ? '<span>多源交叉</span>' : ''}
+        </div>
+      </article>
+    `;
+  }
+  html += '</section>';
+  return html;
+}
+
+function toggleContent(btn) {
+  const content = btn.previousElementSibling;
+  if (content.classList.contains('show')) {
+    content.classList.remove('show');
+    btn.textContent = '展开全文';
+  } else {
+    content.classList.add('show');
+    btn.textContent = '收起';
+  }
+}
+
+function filterByCategory(cat) {
+  // 切换分类前，收起所有已展开的全文
+  document.querySelectorAll('.news-content.show').forEach(el => {
+    el.classList.remove('show');
+    const btn = el.nextElementSibling;
+    if (btn && btn.classList.contains('toggle-btn')) btn.textContent = '展开全文';
+  });
+
+  const sections = document.querySelectorAll('.section');
+  sections.forEach(s => {
+    if (cat === '__all__' || s.dataset.cat === cat) {
+      s.style.display = '';
+    } else {
+      s.style.display = 'none';
+    }
+  });
+}
+
+function showEmpty(msg) {
+  document.getElementById('content').innerHTML = `<div class="empty">${msg}</div>`;
+}
+
+function formatTime(t) {
+  if (!t) return '';
+  const m = t.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}:\d{1,2}))?/);
+  if (m) {
+    return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}${m[4] ? ' ' + m[4] : ''}`;
+  }
+  const rfc = t.match(/\d{4}/);
+  return rfc ? t.slice(5, 22) : t;
+}
+
+function escapeHtml(s) {
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+name: 每日新闻采集
+
+on:
+  schedule:
+    # 每天北京时间早上 8 点（UTC 0:00）
+    - cron: '0 0 * * *'
+  workflow_dispatch:  # 允许手动触发
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 运行爬虫（PowerShell）
+        shell: pwsh
+        run: ./crawl.ps1
+        env:
+          TZ: 'Asia/Shanghai'
+
+      - name: 提交数据
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -A
+          git commit -m "每日新闻采集 $(date '+%Y-%m-%d')" || echo "无新数据"
+          git push
+
+      - name: 上传 Pages 产物
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+  deploy:
+    needs: crawl
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: 部署到 GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
