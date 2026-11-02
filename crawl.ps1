@@ -669,10 +669,14 @@ Write-Host "[保存] $jsonPath"
 $indexPath = Join-Path $dataDir "index.json"
 $dates = @()
 if (Test-Path $indexPath) {
-    $dates = Get-Content $indexPath -Raw -Encoding utf8 | ConvertFrom-Json
+    # 用正则提取日期，避免 ConvertFrom-Json 在 PS7 下把单元素数组退化为字符串
+    $rawIndex = Get-Content $indexPath -Raw -Encoding utf8
+    foreach ($m in [regex]::Matches($rawIndex, '\d{4}-\d{2}-\d{2}')) {
+        if ($dates -notcontains $m.Value) { $dates += $m.Value }
+    }
 }
 if ($dates -notcontains $today) { $dates += $today }
-$dates = $dates | Sort-Object -Descending
+$dates = @($dates | Sort-Object -Descending)
 # 确保输出为JSON数组（每个元素带引号）
 $quotedDates = $dates | ForEach-Object { '"' + $_ + '"' }
 $indexJson = "[" + ($quotedDates -join ',') + "]"
