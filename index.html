@@ -28,39 +28,6 @@
     min-height: 100vh;
   }
 
-  /* 开场动画遮罩（纯黑背景，淡出） */
-  .intro {
-    position: fixed;
-    inset: 0;
-    background: var(--bg);
-    z-index: 9998;
-    pointer-events: none;
-    opacity: 1;
-    transition: opacity 0.5s ease 0.9s;
-  }
-  .intro.done { opacity: 0; }
-
-  /* 标题飞行动画：从屏幕中央飞到左上角固定位置 */
-  .header h1 {
-    will-change: transform, opacity;
-    transform-origin: left center;
-  }
-  .header h1.flying {
-    opacity: 0;
-  }
-
-  /* 新闻卡片依次淡入（由 JS 添加 pop 类触发，错开延迟） */
-  .news-card {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  .news-card.pop {
-    animation: cardFadeIn 0.5s ease forwards;
-  }
-  @keyframes cardFadeIn {
-    to { opacity: 1; transform: translateY(0); }
-  }
-
   /* 顶部栏 */
   .header {
     background: #000;
@@ -320,8 +287,6 @@
 </head>
 <body>
 
-<div class="intro"></div>
-
 <header class="header">
   <div class="header-inner">
     <h1>每日新闻简报</h1>
@@ -354,7 +319,6 @@ let currentData = null;
 
 // 板块顺序
 const CATEGORY_ORDER = ['政治', '经济', '国际', '科技', '军事', '社会', '其他'];
-let firstLoad = true;
 
 async function init() {
   await loadIndex();
@@ -365,35 +329,6 @@ async function init() {
   currentDate = allDates[0];
   populateDateSelect();
   await loadDay(currentDate);
-  // 首次加载：标题从屏幕中央飞到左上角，之后卡片依次淡入
-  titleFlight();
-}
-
-function titleFlight() {
-  const h1 = document.querySelector('.header h1');
-  const intro = document.querySelector('.intro');
-  const rect = h1.getBoundingClientRect();
-  const cx = window.innerWidth / 2;
-  const cy = window.innerHeight / 2;
-  const tx = cx - (rect.left + rect.width / 2);
-  const ty = cy - (rect.top + rect.height / 2);
-
-  // 起始：屏幕中央，放大
-  h1.style.transition = 'none';
-  h1.style.transform = `translate(${tx}px, ${ty}px) scale(1.6)`;
-  h1.style.opacity = '1';
-
-  // 强制重排后过渡到自然位置
-  void h1.offsetWidth;
-  h1.style.transition = 'transform 0.9s cubic-bezier(0.2,0.8,0.2,1), opacity 0.9s ease';
-  h1.style.transform = 'translate(0,0) scale(1)';
-
-  // 遮罩淡出
-  setTimeout(() => intro && intro.classList.add('done'), 60);
-
-  // 标题就位后，卡片依次淡入
-  setTimeout(() => animateCards(0), 700);
-  firstLoad = false;
 }
 
 async function loadIndex() {
@@ -468,19 +403,6 @@ function render(data) {
       item.classList.add('active');
       filterByCategory(item.dataset.cat);
     });
-  });
-
-  // 非首次加载（切换日期）：卡片直接依次淡入
-  if (!firstLoad) {
-    animateCards(0);
-  }
-}
-
-function animateCards(startDelay) {
-  const cards = document.querySelectorAll('.news-card');
-  cards.forEach((card, i) => {
-    card.style.animationDelay = `${startDelay + i * 0.06}s`;
-    card.classList.add('pop');
   });
 }
 

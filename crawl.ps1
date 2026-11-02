@@ -677,6 +677,25 @@ if (Test-Path $indexPath) {
 }
 if ($dates -notcontains $today) { $dates += $today }
 $dates = @($dates | Sort-Object -Descending)
+
+# 只保留最近 7 天：超期的数据文件直接删除，索引同步剔除
+$cutoff = (Get-Date).Date.AddDays(-6)
+$keptDates = @()
+foreach ($d in $dates) {
+    $parsed = $null
+    try { $parsed = [datetime]::ParseExact($d, 'yyyy-MM-dd', $null) } catch { $parsed = $null }
+    if ($parsed -and $parsed -ge $cutoff) {
+        $keptDates += $d
+    } else {
+        $oldFile = Join-Path $dataDir "$d.json"
+        if (Test-Path $oldFile) {
+            Remove-Item $oldFile -Force
+            Write-Host "[清理] 删除过期数据 $d.json"
+        }
+    }
+}
+$dates = @($keptDates | Sort-Object -Descending)
+
 # 确保输出为JSON数组（每个元素带引号）
 $quotedDates = $dates | ForEach-Object { '"' + $_ + '"' }
 $indexJson = "[" + ($quotedDates -join ',') + "]"
