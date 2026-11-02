@@ -30,7 +30,9 @@ jobs:
           git config --local user.name "GitHub Action"
           git add -A
           git commit -m "每日新闻采集 $(date '+%Y-%m-%d')" || echo "无新数据"
-          git push
+          # 防止推送期间远程有新提交导致非快进失败
+          git pull --rebase origin main || true
+          git push origin main
 
       - name: 上传 Pages 产物
         uses: actions/upload-pages-artifact@v3
