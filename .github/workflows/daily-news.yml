@@ -20,7 +20,7 @@ jobs:
 
       - name: 运行爬虫（PowerShell）
         shell: pwsh
-        run: ./crawl.ps1
+        run: pwsh -NoProfile -File ./crawl.ps1
         env:
           TZ: 'Asia/Shanghai'
 

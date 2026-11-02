@@ -223,11 +223,19 @@ function Get-DateFromUrl {
     return $null
 }
 
+# 兼容 PowerShell 5.1 与 7.x：-UseBasicParsing 在 7.x 已移除
+function Invoke-WebSafe {
+    param([string]$url, [int]$timeout = 15)
+    $p = @{ Uri = $url; Headers = $headers; TimeoutSec = $timeout }
+    if ($PSVersionTable.PSVersion.Major -lt 6) { $p['UseBasicParsing'] = $true }
+    return Invoke-WebRequest @p
+}
+
 function Fetch-ArticleContent {
     param([string]$url)
     if ([string]::IsNullOrWhiteSpace($url)) { return "" }
     try {
-        $resp = Invoke-WebRequest -Uri $url -Headers $headers -TimeoutSec 15 -UseBasicParsing
+        $resp = Invoke-WebSafe -url $url -timeout 15
         $html = [System.Text.Encoding]::UTF8.GetString($resp.RawContentStream.ToArray())
         if ($html.Length -lt 500) { return "" }
 
@@ -329,7 +337,7 @@ function Fetch-HtmlList {
     param($source)
     $items = @()
     try {
-        $resp = Invoke-WebRequest -Uri $source.url -Headers $headers -TimeoutSec 15 -UseBasicParsing
+        $resp = Invoke-WebSafe -url $source.url -timeout 15
         $html = [System.Text.Encoding]::UTF8.GetString($resp.RawContentStream.ToArray())
 
         # 提取所有 <a href="...">标题</a>
@@ -407,7 +415,7 @@ function Fetch-Rss {
     param($source)
     $items = @()
     try {
-        $resp = Invoke-WebRequest -Uri $source.url -Headers $headers -TimeoutSec 15 -UseBasicParsing
+        $resp = Invoke-WebSafe -url $source.url -timeout 15
         # 强制用 UTF-8 解码（很多中文 RSS 的 HTTP 头没声明编码，PS 默认按 Latin-1 解码会乱码）
         $content = [System.Text.Encoding]::UTF8.GetString($resp.RawContentStream.ToArray())
         [xml]$xml = $content
