@@ -333,7 +333,8 @@ async function init() {
 
 async function loadIndex() {
   try {
-    const resp = await fetch(DATA_BASE + 'index.json');
+    // 加时间戳并禁用缓存，确保每次打开都能拿到最新的日期列表
+    const resp = await fetch(DATA_BASE + 'index.json?t=' + Date.now(), { cache: 'no-store' });
     if (resp.ok) allDates = await resp.json();
   } catch (e) { console.error('加载索引失败', e); }
 }
@@ -355,7 +356,7 @@ async function loadDay(date) {
   const content = document.getElementById('content');
   content.innerHTML = '<div class="loading"><div class="spinner"></div><div>加载中...</div></div>';
   try {
-    const resp = await fetch(DATA_BASE + date + '.json');
+    const resp = await fetch(DATA_BASE + date + '.json?t=' + Date.now(), { cache: 'no-store' });
     if (!resp.ok) { showEmpty('该日期数据不存在'); return; }
     currentData = await resp.json();
     render(currentData);
