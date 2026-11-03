@@ -2,8 +2,9 @@ name: 每日新闻采集
 
 on:
   schedule:
-    # 每天北京时间早上 8 点（UTC 0:00）
-    - cron: '0 0 * * *'
+    # 每天北京时间约早上 8 点（UTC 0:17）
+    # 避开整点：GitHub 在每个整点（尤其 UTC 00:00）任务最拥堵，延迟可达数小时
+    - cron: '17 0 * * *'
   workflow_dispatch:  # 允许手动触发
 
 permissions:
