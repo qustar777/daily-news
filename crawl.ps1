@@ -183,36 +183,6 @@ function Test-IsRecent {
     return ($delta.TotalHours -le $hours)
 }
 
-# 把 pub_time 统一格式化成 "yyyy-MM-dd"，便于前端按发布日期精确过滤
-function Format-PubDate {
-    param([string]$pubTimeStr)
-    if ([string]::IsNullOrWhiteSpace($pubTimeStr)) { return $null }
-    $formats = @(
-        "ddd, d MMM yyyy HH:mm:ss zzz",
-        "ddd, d MMM yyyy HH:mm:ss GMT",
-        "yyyy-MM-dd HH:mm:ss",
-        "yyyy-MM-dd HH:mm",
-        "yyyy-MM-dd",
-        "yyyy/MM/dd HH:mm",
-        "yyyy/MM/dd"
-    )
-    foreach ($fmt in $formats) {
-        try {
-            $dt = [DateTime]::ParseExact($pubTimeStr.Trim(), $fmt, [System.Globalization.CultureInfo]::InvariantCulture)
-            return $dt.ToString('yyyy-MM-dd')
-        } catch {}
-    }
-    # 正则兜底
-    $m = [regex]::Match($pubTimeStr, '(\d{4})[-/](\d{1,2})[-/](\d{1,2})')
-    if ($m.Success) {
-        try {
-            $dt = Get-Date -Year $m.Groups[1].Value -Month $m.Groups[2].Value -Day $m.Groups[3].Value
-            return $dt.ToString('yyyy-MM-dd')
-        } catch {}
-    }
-    return $null
-}
-
 function Get-DateFromUrl {
     param([string]$url)
     if ([string]::IsNullOrWhiteSpace($url)) { return $null }
@@ -540,18 +510,6 @@ foreach ($item in $allNews) {
         }
     }
     if (-not $isRecent) { continue }
-
-    # 确保每条新闻都有 pub_time：空时从 URL 兜底
-    if ([string]::IsNullOrWhiteSpace($item.pub_time)) {
-        $urlDate = Get-DateFromUrl $item.link
-        if ($urlDate) {
-            $item.pub_time = $urlDate.ToString('yyyy-MM-dd')
-        }
-    }
-
-    # 统一 pub_time 格式为 "yyyy-MM-dd"（兼容各种信源的不同格式）
-    $normalized = Format-PubDate $item.pub_time
-    if ($normalized) { $item.pub_time = $normalized }
 
     # 抓取文章正文（仅当没有正文时才抓，避免重复）
     if ([string]::IsNullOrWhiteSpace($item.content) -or $item.content.Length -lt 100) {
