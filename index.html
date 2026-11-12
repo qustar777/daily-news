@@ -368,43 +368,31 @@ async function loadDay(date) {
 function render(data) {
   const content = document.getElementById('content');
   const cats = data.categories || {};
-
-  // 按当前选择的日期过滤：只显示"发布日期 == 当前选择日期"的新闻
-  // 这样用户选哪天，就只看那天发布的，避免政策类旧闻混入
-  const filterDate = currentDate;  // 形如 "2026-11-11"
-  const filteredCats = {};
-  let filteredTotal = 0;
-  for (const cat of Object.keys(cats)) {
-    const arr = cats[cat] || [];
-    filteredCats[cat] = arr.filter(item => extractPubDate(item.pub_time) === filterDate);
-    filteredTotal += filteredCats[cat].length;
-  }
-
-  const hasNews = Object.values(filteredCats).some(arr => arr.length > 0);
+  const hasNews = Object.values(cats).some(arr => arr.length > 0);
 
   if (!hasNews) {
-    showEmpty(`${filterDate} 当天无新闻`);
+    showEmpty(`${data.date} 暂无可核实新闻`);
     return;
   }
 
   let navHtml = '<nav class="nav">';
-  navHtml += `<div class="nav-item active" data-cat="__all__">全部 <span class="count">${filteredTotal}</span></div>`;
+  navHtml += `<div class="nav-item active" data-cat="__all__">全部 <span class="count">${data.total_news || 0}</span></div>`;
   for (const cat of CATEGORY_ORDER) {
-    if (filteredCats[cat] && filteredCats[cat].length > 0) {
-      navHtml += `<div class="nav-item" data-cat="${cat}">${cat} <span class="count">${filteredCats[cat].length}</span></div>`;
+    if (cats[cat] && cats[cat].length > 0) {
+      navHtml += `<div class="nav-item" data-cat="${cat}">${cat} <span class="count">${cats[cat].length}</span></div>`;
     }
   }
   navHtml += '</nav>';
 
   let sectionsHtml = '';
   for (const cat of CATEGORY_ORDER) {
-    if (filteredCats[cat] && filteredCats[cat].length > 0) {
-      sectionsHtml += renderSection(cat, filteredCats[cat]);
+    if (cats[cat] && cats[cat].length > 0) {
+      sectionsHtml += renderSection(cat, cats[cat]);
     }
   }
-  for (const cat of Object.keys(filteredCats)) {
-    if (!CATEGORY_ORDER.includes(cat) && filteredCats[cat].length > 0) {
-      sectionsHtml += renderSection(cat, filteredCats[cat]);
+  for (const cat of Object.keys(cats)) {
+    if (!CATEGORY_ORDER.includes(cat) && cats[cat].length > 0) {
+      sectionsHtml += renderSection(cat, cats[cat]);
     }
   }
 
@@ -417,18 +405,6 @@ function render(data) {
       filterByCategory(item.dataset.cat);
     });
   });
-}
-
-// 从 pub_time 提取日期部分（返回 "yyyy-MM-dd" 或 null）
-function extractPubDate(pubTime) {
-  if (!pubTime) return null;
-  const m = String(pubTime).match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
-  if (m) {
-    const y = m[1], mo = m[2].padStart(2, '0'), d = m[3].padStart(2, '0');
-    return `${y}-${mo}-${d}`;
-  }
-  // 兜底：如果 pub_time 本身就是 "2026-11-11" 格式，上面的正则也能匹配
-  return null;
 }
 
 function renderSection(cat, items) {
